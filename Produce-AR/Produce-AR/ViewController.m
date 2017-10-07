@@ -10,9 +10,10 @@
 #import "SoundManager.h"
 #import "ViewController.h"
 
+// Bluetooth UUID
+static NSString *const UUID = @"19B10010-E8F2-537E-4F6C-D104768A1214";
 
 // Geometric Constants (in meters)
-
 static float const kPLANE_WIDTH = 2.0;
 static float const kPLANE_HEIGHT = 1.0;
 
@@ -22,19 +23,24 @@ static float const kPLANE_Z = -2;
 
 static float const kORTH_PLANE_HEIGHT = 0.5;
 
+static NSUInteger const kNumMeasures = 8;
+static NSUInteger const kAnimateQuantize = 128;
+
 @interface ViewController () <ARSCNViewDelegate, BlueToothManagerDelegate>
 
 @property (nonatomic, strong) IBOutlet ARSCNView *sceneView;
+@property (atomic) BOOL isAnimating;
 
 @end
 
     
 @implementation ViewController
 {
-    BluetoothManager *_bluetoothManager;
-    SoundManager *_soundManager;
-    
-    
+    BluetoothManager *_bluetoothManager; // manages Bluetooth I/O
+    SoundManager *_soundManager; // manages sound
+    SCNNode *_orthoPlaneNode; // panning plane
+    NSMutableArray *_addedWaves; // waves added by bluetooth
+    NSLock *_arrayLock; // locks the _addedWaves array
 }
 
 - (void)viewDidLoad {
@@ -54,6 +60,12 @@ static float const kORTH_PLANE_HEIGHT = 0.5;
     
     // Set up initial plane
     [self setupGrid];
+    // Set up orthogonal panning pane
+    [self setUpOrthoMovingPlane];
+    
+    // Initialize lock, waves array
+    _addedWaves = [NSMutableArray new];
+    _arrayLock = [NSLock new];
     
     // Initialize SoundManager
     _soundManager = [[SoundManager alloc] initWithDefaults];
@@ -92,8 +104,7 @@ static float const kORTH_PLANE_HEIGHT = 0.5;
       forControlEvents:(UIControlEvents)UIControlEventTouchDown];
     [self.view addSubview:button3];
     
-    
-    NSString *UUID = @"19B10010-E8F2-537E-4F6C-D104768A1214";
+    // Initiliaze BluetoothManager
     _bluetoothManager = [[BluetoothManager alloc] initWithServiceUUID:UUID
                                              bluetoothManagerDelegate:self
                                                                 queue:dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)];
@@ -101,14 +112,65 @@ static float const kORTH_PLANE_HEIGHT = 0.5;
 
 -(void) playSound1:(id)sender {
     [_soundManager playSound:kKickKey];
+    [self startPanning:90];
 }
 
 -(void) playSound2:(id)sender {
     [_soundManager playSound:kSnareKey];
+    [_arrayLock lock];
+    [_addedWaves addObject:@(1)];
+    [_arrayLock unlock];
 }
 
 -(void) playSound3:(id)sender {
     [_soundManager playSound:kHatKey];
+}
+
+-(void) startPanning:(float)bpm
+{
+    float bps = bpm / 60.0; // beats per second
+    float totalPanningDuration = (float)kNumMeasures / bps;
+    const float loopPanningDuration = totalPanningDuration / (float)kAnimateQuantize;
+    //const float panSpeed = kPLANE_WIDTH / totalPanningDuration;
+    
+    const float constY = _orthoPlaneNode.position.y;
+    const float constZ = _orthoPlaneNode.position.z;
+
+    _isAnimating = YES;
+    SCNAction *pan = [SCNAction moveByX:kPLANE_WIDTH y:0 z:0 duration:totalPanningDuration];
+    [_orthoPlaneNode runAction:pan completionHandler:^{
+        _isAnimating = NO;
+        _orthoPlaneNode.position = SCNVector3Make(0.0-kPLANE_WIDTH/2, constY, constZ);
+    }];
+    
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^void () {
+        float timeSinceAnimation = 0.0;
+        BOOL hasNewWaves = NO;
+        while (_isAnimating) {
+            float currentX = _orthoPlaneNode.position.x;
+            [_arrayLock lock];
+            if ([_addedWaves count] > 0) {
+                hasNewWaves = YES;
+                [_addedWaves removeAllObjects];
+            }
+            [_arrayLock unlock];
+            
+            if (hasNewWaves) {
+                SCNBox *boxGeometry = [SCNBox
+                                       boxWithWidth:0.1
+                                       height:0.1
+                                       length:0.1
+                                       chamferRadius:0.0];
+                SCNNode *boxNode = [SCNNode nodeWithGeometry:boxGeometry];
+                boxNode.position = SCNVector3Make(currentX, constY, constZ);
+                [self.sceneView.scene.rootNode addChildNode: boxNode];
+                hasNewWaves = NO;
+            }
+            timeSinceAnimation += loopPanningDuration;
+            [NSThread sleepForTimeInterval:loopPanningDuration];
+        }
+    });
+    
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -196,7 +258,6 @@ static float const kORTH_PLANE_HEIGHT = 0.5;
 - (void)setUpOrthoMovingPlane
 {
     SCNPlane *planeGeometry = [SCNPlane planeWithWidth:kPLANE_HEIGHT height:kORTH_PLANE_HEIGHT];
-    planeGeometry.firstMaterial.diffuse.contents = SKColor.yellowColor;
     planeGeometry.firstMaterial.doubleSided = YES;
     
     SCNNode *planeNode = [SCNNode nodeWithGeometry:planeGeometry];
@@ -209,8 +270,10 @@ static float const kORTH_PLANE_HEIGHT = 0.5;
     
     // TODO add texture scale
     planeNode.opacity = 0.5;
+    
+    _orthoPlaneNode = planeNode;
 
-    [self.sceneView.scene.rootNode addChildNode:planeNode];
+    [self.sceneView.scene.rootNode addChildNode:_orthoPlaneNode];
 }
 
 - (void)session:(ARSession *)session didFailWithError:(NSError *)error {
