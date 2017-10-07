@@ -10,6 +10,18 @@
 #import "SoundManager.h"
 #import "ViewController.h"
 
+
+// Geometric Constants (in meters)
+
+static float const kPLANE_WIDTH = 2.0;
+static float const kPLANE_HEIGHT = 1.0;
+
+static float const kPLANE_X = 0.0;
+static float const kPLANE_Y = -0.5;
+static float const kPLANE_Z = -2;
+
+static float const kORTH_PLANE_HEIGHT = 0.5;
+
 @interface ViewController () <ARSCNViewDelegate, BlueToothManagerDelegate>
 
 @property (nonatomic, strong) IBOutlet ARSCNView *sceneView;
@@ -19,11 +31,10 @@
     
 @implementation ViewController
 {
-    // Manager for bluetooth io
     BluetoothManager *_bluetoothManager;
-    
-    // Manager for soundclips
     SoundManager *_soundManager;
+    
+    
 }
 
 - (void)viewDidLoad {
@@ -35,11 +46,14 @@
     // Show statistics such as fps and timing information
     self.sceneView.showsStatistics = YES;
     
-    // Create a new scene
-    SCNScene *scene = [SCNScene sceneNamed:@"art.scnassets/ship.scn"];
+    // Container to hold all of the 3D geometry
+    SCNScene *scene = [SCNScene new];
     
     // Set the scene to the view
     self.sceneView.scene = scene;
+    
+    // Set up initial plane
+    [self setupGrid];
     
     // Initialize SoundManager
     _soundManager = [[SoundManager alloc] initWithDefaults];
@@ -131,6 +145,73 @@
     return node;
 }
 */
+
+#pragma mark - Grid Setup
+
+// Set up the Grid used to anchor all patterns
+- (void)setupGrid
+{
+    // Initialize the material
+    SCNMaterial *material = [SCNMaterial new];
+    UIImage *img = [UIImage imageNamed:@"tron_grid"];
+    material.diffuse.contents = img;
+    material.doubleSided = YES;
+    
+    // Set up horizontal planes
+    SCNMaterial *materialH = [material copy];
+    materialH.diffuse.contentsTransform = SCNMatrix4MakeScale(kPLANE_WIDTH, kPLANE_HEIGHT, 1);
+    materialH.diffuse.wrapS = SCNWrapModeRepeat;
+    materialH.diffuse.wrapT = SCNWrapModeRepeat;
+    SCNPlane *planeGeometry = [SCNPlane planeWithWidth:kPLANE_WIDTH height:kPLANE_HEIGHT];
+    planeGeometry.materials = @[materialH];
+    
+    SCNNode *planeNode = [SCNNode nodeWithGeometry:planeGeometry];
+    
+    // Rotate the plane (it's vertical by default)
+    planeNode.transform = SCNMatrix4MakeRotation(-M_PI / 2.0, 1.0, 0.0, 0.0);
+    
+    // place it 1 meter in front of the camera
+    planeNode.position = SCNVector3Make(kPLANE_X, kPLANE_Y, kPLANE_Z);
+    
+    [self.sceneView.scene.rootNode addChildNode:planeNode];
+    
+    // Setup vertical plane
+    material.diffuse.contentsTransform = SCNMatrix4MakeScale(kPLANE_HEIGHT, kORTH_PLANE_HEIGHT, 1);
+    material.diffuse.wrapS = SCNWrapModeRepeat;
+    material.diffuse.wrapT = SCNWrapModeRepeat;
+    SCNPlane *vertPlane = [SCNPlane planeWithWidth:kPLANE_HEIGHT height:kORTH_PLANE_HEIGHT];
+    vertPlane.materials = @[material];
+    
+    SCNNode *vertPlaneNode = [SCNNode nodeWithGeometry:vertPlane];
+    
+    // Rotate the plane along y axis
+    vertPlaneNode.transform = SCNMatrix4MakeRotation(-M_PI / 2.0, 0.0, 1.0, 0.0);
+    
+    // place it 1 meter in front of the camera
+    vertPlaneNode.position = SCNVector3Make(0.0-kPLANE_WIDTH/2, kPLANE_Y+kORTH_PLANE_HEIGHT/2, kPLANE_Z);
+    
+    [self.sceneView.scene.rootNode addChildNode:vertPlaneNode];
+}
+
+- (void)setUpOrthoMovingPlane
+{
+    SCNPlane *planeGeometry = [SCNPlane planeWithWidth:kPLANE_HEIGHT height:kORTH_PLANE_HEIGHT];
+    planeGeometry.firstMaterial.diffuse.contents = SKColor.yellowColor;
+    planeGeometry.firstMaterial.doubleSided = YES;
+    
+    SCNNode *planeNode = [SCNNode nodeWithGeometry:planeGeometry];
+    
+    // Rotate the plane along y axis
+    planeNode.transform = SCNMatrix4MakeRotation(-M_PI / 2.0, 0.0, 1.0, 0.0);
+    
+    // place it 1 meter in front of the camera
+    planeNode.position = SCNVector3Make(0.0-kPLANE_WIDTH/2, kPLANE_Y+kORTH_PLANE_HEIGHT/2, kPLANE_Z);
+    
+    // TODO add texture scale
+    planeNode.opacity = 0.5;
+
+    [self.sceneView.scene.rootNode addChildNode:planeNode];
+}
 
 - (void)session:(ARSession *)session didFailWithError:(NSError *)error {
     // Present an error message to the user

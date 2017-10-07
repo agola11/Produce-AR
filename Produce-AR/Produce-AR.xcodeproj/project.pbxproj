@@ -18,6 +18,7 @@
 		7D2207E61F886A87000D0DD6 /* Produce_ARUITests.m in Sources */ = {isa = PBXBuildFile; fileRef = 7D2207E51F886A87000D0DD6 /* Produce_ARUITests.m */; };
 		7D6455251F8882F30066CF69 /* SoundManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 7D6455241F8882F30066CF69 /* SoundManager.m */; };
 		7D6455281F888D370066CF69 /* BluetoothManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 7D6455271F888D370066CF69 /* BluetoothManager.m */; };
+		7D64552A1F895DFB0066CF69 /* tron_grid.png in Resources */ = {isa = PBXBuildFile; fileRef = 7D6455291F895DD80066CF69 /* tron_grid.png */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -59,6 +60,7 @@
 		7D6455241F8882F30066CF69 /* SoundManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SoundManager.m; sourceTree = "<group>"; };
 		7D6455261F888D150066CF69 /* BluetoothManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BluetoothManager.h; sourceTree = "<group>"; };
 		7D6455271F888D370066CF69 /* BluetoothManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BluetoothManager.m; sourceTree = "<group>"; };
+		7D6455291F895DD80066CF69 /* tron_grid.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = tron_grid.png; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -118,6 +120,7 @@
 				7D6455271F888D370066CF69 /* BluetoothManager.m */,
 				7D6455231F8882670066CF69 /* SoundManager.h */,
 				7D6455241F8882F30066CF69 /* SoundManager.m */,
+				7D6455291F895DD80066CF69 /* tron_grid.png */,
 				7D2207C71F886A87000D0DD6 /* Main.storyboard */,
 				7D2207CA1F886A87000D0DD6 /* Assets.xcassets */,
 				7D2207CC1F886A87000D0DD6 /* LaunchScreen.storyboard */,
@@ -255,6 +258,7 @@
 				7D2207CE1F886A87000D0DD6 /* LaunchScreen.storyboard in Resources */,
 				7D2207CB1F886A87000D0DD6 /* Assets.xcassets in Resources */,
 				7D2207C91F886A87000D0DD6 /* Main.storyboard in Resources */,
+				7D64552A1F895DFB0066CF69 /* tron_grid.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
