@@ -6,10 +6,11 @@
 //  Copyright © 2017 Ankush Gola. All rights reserved.
 //
 
+#import "BluetoothManager.h"
 #import "SoundManager.h"
 #import "ViewController.h"
 
-@interface ViewController () <ARSCNViewDelegate>
+@interface ViewController () <ARSCNViewDelegate, BlueToothManagerDelegate>
 
 @property (nonatomic, strong) IBOutlet ARSCNView *sceneView;
 
@@ -18,6 +19,9 @@
     
 @implementation ViewController
 {
+    // Manager for bluetooth io
+    BluetoothManager *_bluetoothManager;
+    
     // Manager for soundclips
     SoundManager *_soundManager;
 }
@@ -73,6 +77,12 @@
                 action:@selector(playSound3:)
       forControlEvents:(UIControlEvents)UIControlEventTouchDown];
     [self.view addSubview:button3];
+    
+    
+    NSString *UUID = @"19B10010-E8F2-537E-4F6C-D104768A1214";
+    _bluetoothManager = [[BluetoothManager alloc] initWithServiceUUID:UUID
+                                             bluetoothManagerDelegate:self
+                                                                queue:dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)];
 }
 
 -(void) playSound1:(id)sender {
@@ -135,6 +145,18 @@
 - (void)sessionInterruptionEnded:(ARSession *)session {
     // Reset tracking and/or remove existing anchors if consistent tracking is required
     
+}
+
+#pragma mark - BluetoothManagerDelegate
+
+- (void)didReceiveValueFromBluetoothPeripheral:(NSData *)value
+{
+    NSString *strData = [[NSString alloc]initWithData:value encoding:NSUTF8StringEncoding];
+    NSLog(@"recv: %@", strData);
+    
+    uint8_t theData = 'a';
+    NSData *data = [NSData dataWithBytes:&theData length:1];
+    [_bluetoothManager writeValue:data];
 }
 
 @end

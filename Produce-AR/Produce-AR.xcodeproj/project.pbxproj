@@ -17,6 +17,7 @@
 		7D2207DB1F886A87000D0DD6 /* Produce_ARTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 7D2207DA1F886A87000D0DD6 /* Produce_ARTests.m */; };
 		7D2207E61F886A87000D0DD6 /* Produce_ARUITests.m in Sources */ = {isa = PBXBuildFile; fileRef = 7D2207E51F886A87000D0DD6 /* Produce_ARUITests.m */; };
 		7D6455251F8882F30066CF69 /* SoundManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 7D6455241F8882F30066CF69 /* SoundManager.m */; };
+		7D6455281F888D370066CF69 /* BluetoothManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 7D6455271F888D370066CF69 /* BluetoothManager.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -56,6 +57,8 @@
 		7D2207E71F886A87000D0DD6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		7D6455231F8882670066CF69 /* SoundManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SoundManager.h; sourceTree = "<group>"; };
 		7D6455241F8882F30066CF69 /* SoundManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SoundManager.m; sourceTree = "<group>"; };
+		7D6455261F888D150066CF69 /* BluetoothManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BluetoothManager.h; sourceTree = "<group>"; };
+		7D6455271F888D370066CF69 /* BluetoothManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BluetoothManager.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -111,6 +114,8 @@
 				7D2207C21F886A87000D0DD6 /* art.scnassets */,
 				7D2207C41F886A87000D0DD6 /* ViewController.h */,
 				7D2207C51F886A87000D0DD6 /* ViewController.m */,
+				7D6455261F888D150066CF69 /* BluetoothManager.h */,
+				7D6455271F888D370066CF69 /* BluetoothManager.m */,
 				7D6455231F8882670066CF69 /* SoundManager.h */,
 				7D6455241F8882F30066CF69 /* SoundManager.m */,
 				7D2207C71F886A87000D0DD6 /* Main.storyboard */,
@@ -278,6 +283,7 @@
 				7D6455251F8882F30066CF69 /* SoundManager.m in Sources */,
 				7D2207D11F886A87000D0DD6 /* main.m in Sources */,
 				7D2207C11F886A87000D0DD6 /* AppDelegate.m in Sources */,
+				7D6455281F888D370066CF69 /* BluetoothManager.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
