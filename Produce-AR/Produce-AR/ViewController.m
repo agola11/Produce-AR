@@ -6,6 +6,7 @@
 //  Copyright © 2017 Ankush Gola. All rights reserved.
 //
 
+#import "SoundManager.h"
 #import "ViewController.h"
 
 @interface ViewController () <ARSCNViewDelegate>
@@ -16,6 +17,10 @@
 
     
 @implementation ViewController
+{
+    // Manager for soundclips
+    SoundManager *_soundManager;
+}
 
 - (void)viewDidLoad {
     [super viewDidLoad];
@@ -31,6 +36,55 @@
     
     // Set the scene to the view
     self.sceneView.scene = scene;
+    
+    // Initialize SoundManager
+    _soundManager = [[SoundManager alloc] initWithDefaults];
+    
+    // TEMPORARY: create buttons to test sounds
+    UIButton *button1;
+    button1 = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+    button1.frame = CGRectMake(30, 30, 60, 60);
+    [button1 setTitle:@"Kick"
+             forState:(UIControlState)UIControlStateNormal];
+    [button1 setBackgroundColor:[UIColor blueColor]];
+    [button1 addTarget:self
+                action:@selector(playSound1:)
+      forControlEvents:(UIControlEvents)UIControlEventTouchDown];
+    [self.view addSubview:button1];
+    
+    UIButton *button2;
+    button2 = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+    button2.frame = CGRectMake(90, 90, 60, 60);
+    [button2 setTitle:@"Snare"
+             forState:(UIControlState)UIControlStateNormal];
+    [button2 setBackgroundColor:[UIColor blueColor]];
+    [button2 addTarget:self
+                action:@selector(playSound2:)
+      forControlEvents:(UIControlEvents)UIControlEventTouchDown];
+    [self.view addSubview:button2];
+    
+    UIButton *button3;
+    button3 = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+    button3.frame = CGRectMake(30, 90, 60, 60);
+    [button3 setTitle:@"Hat"
+             forState:(UIControlState)UIControlStateNormal];
+    [button3 setBackgroundColor:[UIColor blueColor]];
+    [button3 addTarget:self
+                action:@selector(playSound3:)
+      forControlEvents:(UIControlEvents)UIControlEventTouchDown];
+    [self.view addSubview:button3];
+}
+
+-(void) playSound1:(id)sender {
+    [_soundManager playSound:kKickKey];
+}
+
+-(void) playSound2:(id)sender {
+    [_soundManager playSound:kSnareKey];
+}
+
+-(void) playSound3:(id)sender {
+    [_soundManager playSound:kHatKey];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
