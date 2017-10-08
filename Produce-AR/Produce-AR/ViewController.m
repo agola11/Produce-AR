@@ -585,6 +585,44 @@ static float const X_SCRN = -50;
     // Release any cached data, images, etc that aren't in use.
 }
 
+#pragma mark - Walking Playback
+- (void)walkingPlayback:(ARFrame *)currentFrame
+{
+    if (currentFrame) {
+        simd_float4 translation = currentFrame.camera.transform.columns[3];
+        vector_float3 eulerAngles = currentFrame.camera.eulerAngles;
+        
+        const float kAngleThreshold = 0.35;
+        float xEuler = eulerAngles[0];
+        float yEuler = eulerAngles[1];
+        float yRot = -M_PI / 2.0;
+        
+        float currentX = translation[0];
+        float currentY = translation[1];
+        float currentZ = translation[2];
+        
+        float X_EPSILON = 0.005;
+        
+        if (((-1.0*kAngleThreshold) < xEuler) && (xEuler < kAngleThreshold)) {
+            if (((yRot - kAngleThreshold) < yEuler) && (yEuler < (yRot + kAngleThreshold))) {
+                if ((currentY < 0.0) && (currentY > -0.7)) {
+                    if ((currentZ < -1.5) && (currentZ > -2.5)) {
+                        NSLog(@"%f", currentX);
+                        for (SCNNodeWrapper *sound in _nodesInArrangement) {
+                            if (((currentX - X_EPSILON) <= sound.node.position.x) && (sound.node.position.x <= (currentX + X_EPSILON))) {
+                                [_soundManager playSound:sound.soundKey];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        //NSLog(@"x: %f, y: %f, z: %f", translation[0], translation[1], translation[2]);
+        //NSLog(@"x: %f, y: %f, z: %f", eulerAngles[0], eulerAngles[1], eulerAngles[2]);
+    }
+}
+
 #pragma mark - ARSCNViewDelegate
 
 - (SCNNode *)renderer:(id<SCNSceneRenderer>)renderer nodeForAnchor:(ARAnchor *)anchor {
@@ -615,6 +653,12 @@ static float const X_SCRN = -50;
 
 - (void)renderer:(id <SCNSceneRenderer>)renderer updateAtTime:(NSTimeInterval)time
 {
+    // Walking playback mode
+    if (_isInPlaybackMode) {
+        [self walkingPlayback:self.sceneView.session.currentFrame];
+    }
+    
+    // Vision Tracking
     if (_processingVision || !_enableVision) {
         return;
     }
