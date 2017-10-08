@@ -145,13 +145,18 @@ static float const X_SCRN = -50;
 
     UIButton *button1;
     button1 = [UIButton buttonWithType:UIButtonTypeRoundedRect];
-    button1.frame = CGRectMake(200, 30, 60, 60);
+    button1.frame = CGRectMake(210, 30, 60, 60);
     [button1 setTitle:@"Kick"
              forState:(UIControlState)UIControlStateNormal];
-    [button1 setBackgroundColor:[UIColor blueColor]];
+    [button1 setTitleColor:[UIColor whiteColor]
+                  forState:(UIControlState)UIControlStateNormal];
     [button1 addTarget:self
                 action:@selector(playSound1:)
       forControlEvents:(UIControlEvents)UIControlEventTouchDown];
+    CALayer *layer = button1.layer;
+    layer.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.5].CGColor;
+    layer.borderColor = [[UIColor darkGrayColor] CGColor];
+    layer.borderWidth = 1.0f;
     [self.view addSubview:button1];
     
     UIButton *button2;
@@ -159,10 +164,16 @@ static float const X_SCRN = -50;
     button2.frame = CGRectMake(90, 30, 60, 60);
     [button2 setTitle:@"Snare"
              forState:(UIControlState)UIControlStateNormal];
+    [button2 setTitleColor:[UIColor whiteColor]
+                  forState:(UIControlState)UIControlStateNormal];
     [button2 setBackgroundColor:[UIColor blueColor]];
     [button2 addTarget:self
                 action:@selector(playSound2:)
       forControlEvents:(UIControlEvents)UIControlEventTouchDown];
+    layer = button2.layer;
+    layer.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.5].CGColor;
+    layer.borderColor = [[UIColor darkGrayColor] CGColor];
+    layer.borderWidth = 1.0f;
     [self.view addSubview:button2];
     
     UIButton *button3;
@@ -170,10 +181,15 @@ static float const X_SCRN = -50;
     button3.frame = CGRectMake(150, 30, 60, 60);
     [button3 setTitle:@"Hat"
              forState:(UIControlState)UIControlStateNormal];
-    [button3 setBackgroundColor:[UIColor blueColor]];
+    [button3 setTitleColor:[UIColor whiteColor]
+                  forState:(UIControlState)UIControlStateNormal];
     [button3 addTarget:self
                 action:@selector(playSound3:)
       forControlEvents:(UIControlEvents)UIControlEventTouchDown];
+    layer = button3.layer;
+    layer.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.5].CGColor;
+    layer.borderColor = [[UIColor darkGrayColor] CGColor];
+    layer.borderWidth = 1.0f;
     [self.view addSubview:button3];
     
     // Initiliaze BluetoothManager
