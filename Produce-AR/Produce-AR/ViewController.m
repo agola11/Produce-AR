@@ -33,14 +33,25 @@ static NSUInteger const kAnimateQuantize = 128;
 
 @end
 
+@interface SCNNodeWrapper : NSObject
+
+@property SCNNode *node;
+@property NSString *soundKey;
+
+@end
+
+@implementation SCNNodeWrapper
+@end
+
     
 @implementation ViewController
 {
     BluetoothManager *_bluetoothManager; // manages Bluetooth I/O
     SoundManager *_soundManager; // manages sound
     SCNNode *_orthoPlaneNode; // panning plane
-    NSMutableArray *_addedWaves; // waves added by bluetooth
+    NSMutableSet *_addedWaves; // waves added by bluetooth
     NSLock *_arrayLock; // locks the _addedWaves array
+    NSMutableArray<SCNNodeWrapper*> *_nodesInArrangement; // holds references to all nodes in arrangement
 }
 
 - (void)viewDidLoad {
@@ -64,8 +75,9 @@ static NSUInteger const kAnimateQuantize = 128;
     [self setUpOrthoMovingPlane];
     
     // Initialize lock, waves array
-    _addedWaves = [NSMutableArray new];
+    _addedWaves = [NSMutableSet new];
     _arrayLock = [NSLock new];
+    _nodesInArrangement = [NSMutableArray new];
     
     // Initialize SoundManager
     _soundManager = [[SoundManager alloc] initWithDefaults];
@@ -104,6 +116,17 @@ static NSUInteger const kAnimateQuantize = 128;
       forControlEvents:(UIControlEvents)UIControlEventTouchDown];
     [self.view addSubview:button3];
     
+    UIButton *button4;
+    button4 = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+    button4.frame = CGRectMake(90, 30, 60, 60);
+    [button4 setTitle:@"Playback"
+             forState:(UIControlState)UIControlStateNormal];
+    [button4 setBackgroundColor:[UIColor blueColor]];
+    [button4 addTarget:self
+                action:@selector(playBack:)
+      forControlEvents:(UIControlEvents)UIControlEventTouchDown];
+    [self.view addSubview:button4];
+    
     // Initiliaze BluetoothManager
     _bluetoothManager = [[BluetoothManager alloc] initWithServiceUUID:UUID
                                              bluetoothManagerDelegate:self
@@ -112,7 +135,7 @@ static NSUInteger const kAnimateQuantize = 128;
 
 -(void) playSound1:(id)sender {
     [_soundManager playSound:kKickKey];
-    [self startPanning:90];
+    [self startPanningArrangement:90];
 }
 
 -(void) playSound2:(id)sender {
@@ -126,7 +149,47 @@ static NSUInteger const kAnimateQuantize = 128;
     [_soundManager playSound:kHatKey];
 }
 
--(void) startPanning:(float)bpm
+-(void) playBack:(id)sender {
+    [self startPanningPlayback:90];
+}
+
+-(void) startPanningPlayback:(float)bpm
+{
+    float bps = bpm / 60.0; // beats per second
+    float totalPanningDuration = (float)kNumMeasures / bps;
+    const float loopPanningDuration = totalPanningDuration / (float)kAnimateQuantize;
+    
+    const float constY = _orthoPlaneNode.position.y;
+    const float constZ = _orthoPlaneNode.position.z;
+    
+    _isAnimating = YES;
+    SCNAction *pan = [SCNAction moveByX:kPLANE_WIDTH y:0 z:0 duration:totalPanningDuration];
+    [_orthoPlaneNode runAction:pan completionHandler:^{
+        _isAnimating = NO;
+        _orthoPlaneNode.position = SCNVector3Make(0.0-kPLANE_WIDTH/2, constY, constZ);
+    }];
+    
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^void () {
+        NSMutableSet *arrangementCopy = [NSMutableSet setWithArray:_nodesInArrangement];
+        float timeSinceAnimation = 0.0;
+        while (_isAnimating) {
+            float currentX = _orthoPlaneNode.position.x;
+            for (SCNNodeWrapper *sound in _nodesInArrangement) {
+                if (![arrangementCopy containsObject:sound]) {
+                    continue;
+                }
+                if (currentX >= (sound.node.position.x - 0.1/2)) {
+                    [_soundManager playSound:kSnareKey];
+                    [arrangementCopy removeObject:sound];
+                }
+            }
+            timeSinceAnimation += loopPanningDuration;
+            [NSThread sleepForTimeInterval:loopPanningDuration];
+        }
+    });
+}
+
+-(void) startPanningArrangement:(float)bpm
 {
     float bps = bpm / 60.0; // beats per second
     float totalPanningDuration = (float)kNumMeasures / bps;
@@ -156,14 +219,17 @@ static NSUInteger const kAnimateQuantize = 128;
             [_arrayLock unlock];
             
             if (hasNewWaves) {
-                SCNBox *boxGeometry = [SCNBox
-                                       boxWithWidth:0.1
-                                       height:0.1
-                                       length:0.1
-                                       chamferRadius:0.0];
+                SCNBox *boxGeometry = [SCNBox boxWithWidth:0.1
+                                                    height:0.1
+                                                    length:0.1
+                                             chamferRadius:0.0];
                 SCNNode *boxNode = [SCNNode nodeWithGeometry:boxGeometry];
-                boxNode.position = SCNVector3Make(currentX, constY, constZ);
+                boxNode.position = SCNVector3Make(currentX + 0.1/2.0, constY, constZ);
                 [self.sceneView.scene.rootNode addChildNode: boxNode];
+                SCNNodeWrapper *nodeWrapper = [SCNNodeWrapper new];
+                nodeWrapper.soundKey = kSnareKey;
+                nodeWrapper.node = boxNode;
+                [_nodesInArrangement addObject:nodeWrapper];
                 hasNewWaves = NO;
             }
             timeSinceAnimation += loopPanningDuration;
