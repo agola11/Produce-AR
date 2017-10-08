@@ -35,6 +35,7 @@ static float const X_SCRN = -50;
 @property (atomic) BOOL isAnimating;
 @property (atomic) BOOL isRecording;
 @property (atomic) BOOL isPlaying;
+@property (atomic) NSString *currentSoundKey;
 @end
 
 @interface SCNNodeWrapper : NSObject
@@ -72,7 +73,7 @@ static float const X_SCRN = -50;
     UIButton *_recordButton;
     UIButton *_playButton;
     UIButton *_clearButton;
-    UIButton *_instrumentSelectionMenu;
+    NSMutableArray<UIButton *> *_instrumentSelectionMenu;
 }
 
 - (void)viewDidLoad {
@@ -101,6 +102,7 @@ static float const X_SCRN = -50;
     _isPlaying = NO;
     _enableVision = YES;
     _processingVision = NO;
+    _currentSoundKey = kKickKey;
     
     // Set up initial plane
     [self setupGrid];
@@ -273,6 +275,8 @@ static float const X_SCRN = -50;
     [self.view addSubview:_playButton];
 }
 
+#pragma mark - instrument selection menu
+
 - (void)setUpInstrumentSelectionMenu
 {
     // turn vision processing off to avoid jumpy node
@@ -282,31 +286,70 @@ static float const X_SCRN = -50;
         return;
     }
     
-    _instrumentSelectionMenu = [UIButton buttonWithType:UIButtonTypeRoundedRect];
-    _instrumentSelectionMenu.frame = CGRectMake(30, 30, 150, 150);
-    [_instrumentSelectionMenu setTitle:_currentQRValue
-                              forState:(UIControlState)UIControlStateNormal];
-    [_instrumentSelectionMenu setBackgroundColor:[UIColor blueColor]];
-    [_instrumentSelectionMenu addTarget:self
-                action:@selector(exitInstrumentSelectionMenu:)
-      forControlEvents:(UIControlEvents)UIControlEventTouchDown];
-    [self.sceneView addSubview:_instrumentSelectionMenu];
+    _instrumentSelectionMenu = [NSMutableArray new];
+    
+    for (int i = 0; i < 4; ++i) {
+        UIButton *menuItem = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+        menuItem.frame = CGRectMake(_screenWidth/2 + X_SCRN,
+                                    _screenHeight/2 + (-60 + i*30),
+                                    120,
+                                    30);
+        NSString *title;
+        if (i == 0) {
+            title = @"Kick";
+        } else if (i == 1) {
+            title = @"Hat";
+        } else if (i == 2) {
+            title = @"Snare";
+        } else {
+            title = @"OK";
+        }
+        
+        [menuItem setTitle:title
+                 forState:(UIControlState)UIControlStateNormal];
+        [menuItem setTitleColor:[UIColor whiteColor]
+                                forState:(UIControlState)UIControlStateNormal];
+        menuItem.titleLabel.font = [UIFont systemFontOfSize:16.0];
+        [menuItem addTarget:self
+                     action:@selector(handleInstrumentSelection:)
+           forControlEvents:(UIControlEvents)UIControlEventTouchDown];
+        CALayer *layer = menuItem.layer;
+        layer.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.5].CGColor;
+        layer.borderColor = [[UIColor blueColor] CGColor];
+        layer.borderWidth = 1.0f;
+        [self.view addSubview:menuItem];
+        [_instrumentSelectionMenu addObject:menuItem];
+    }
 }
 
-- (void) exitInstrumentSelectionMenu:(id)sender {
-    [(UIButton *)sender removeFromSuperview];
-    _instrumentSelectionMenu = nil;
-    SCNNode *node = [self.sceneView nodeForAnchor:_qrAnchor];
-    [node removeFromParentNode];
-    _qrAnchor = nil;
-    _enableVision = YES;
+- (void) handleInstrumentSelection:(id)sender {
+    
+    NSString *titleText = [(UIButton *)sender titleLabel].text;
+    
+    if ([titleText isEqualToString:@"Kick"]) {
+        _currentSoundKey = kKickKey;
+    } else if ([titleText isEqualToString:@"Hat"]) {
+        _currentSoundKey = kHatKey;
+    } else if ([titleText isEqualToString:@"Snare"]) {
+        _currentSoundKey = kSnareKey;
+    } else {
+        // if OK
+        for (id menuItem in _instrumentSelectionMenu) {
+            [menuItem removeFromSuperview];
+        }
+        _instrumentSelectionMenu = nil;
+        SCNNode *node = [self.sceneView nodeForAnchor:_qrAnchor];
+        [node removeFromParentNode];
+        _qrAnchor = nil;
+        _enableVision = YES;
+    }
 }
 
 
 #pragma mark - modes
 
 - (void)playbackMode:(id)sender {
-    if (_isInPlaybackMode || _isRecording) {
+    if (_isInPlaybackMode || _isRecording || _instrumentSelectionMenu) {
         return;
     }
     
@@ -353,7 +396,7 @@ static float const X_SCRN = -50;
 
 - (void)recordingMode:(id)sender
 {
-    if (_isRecording) {
+    if (_isRecording || _instrumentSelectionMenu) {
         return;
     }
     _isRecording = YES;
@@ -363,7 +406,7 @@ static float const X_SCRN = -50;
 
 - (void)playingMode:(id)sender
 {
-    if (_isPlaying) {
+    if (_isPlaying || _instrumentSelectionMenu) {
         return;
     }
     _isPlaying = YES;
@@ -385,7 +428,6 @@ static float const X_SCRN = -50;
 
 -(void) playSound1:(id)sender {
     [_soundManager playSound:kKickKey];
-    
     if (_isRecording) {
         [_arrayLock lock];
         [_addedWaves addObject:kKickKey];
@@ -559,6 +601,10 @@ static float const X_SCRN = -50;
         boxNode.transform = SCNMatrix4FromMat4(anchor.transform);
         
         dispatch_async(dispatch_get_main_queue(), ^{
+            // Send vibration to bluetooth
+            uint8_t theData = 'v';
+            NSData *data = [NSData dataWithBytes:&theData length:1];
+            [_bluetoothManager writeValue:data];
             [self setUpInstrumentSelectionMenu];
         });
         
@@ -712,13 +758,23 @@ static float const X_SCRN = -50;
 
 - (void)didReceiveValueFromBluetoothPeripheral:(NSData *)value
 {
-    NSString *strData = [[NSString alloc]initWithData:value encoding:NSUTF8StringEncoding];
-    NSLog(@"recv: %@", strData);
+    //NSString *strData = [[NSString alloc]initWithData:value encoding:NSUTF8StringEncoding];
     
-    uint8_t theData = 'a';
-    NSData *data = [NSData dataWithBytes:&theData length:1];
-    [_bluetoothManager writeValue:data];
+    if ([_currentSoundKey isEqualToString:kKickKey]) {
+        [self playSound1:nil];
+    } else if ([_currentSoundKey isEqualToString:kSnareKey]) {
+        [self playSound2:nil];
+    } else {
+        [self playSound3:nil];
+    }
     
+    
+    //NSLog(@"recv: %@", strData);
+    
+//    uint8_t theData = 'a';
+//    NSData *data = [NSData dataWithBytes:&theData length:1];
+//    [_bluetoothManager writeValue:data];
+//
     // TODO: play sound
 }
 
