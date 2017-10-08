@@ -66,6 +66,7 @@ static float const X_SCRN = -50;
     UIButton *_arrangmentButton;
     UIButton *_recordButton;
     UIButton *_playButton;
+    UIButton *_clearButton;
     
 }
 
@@ -111,7 +112,7 @@ static float const X_SCRN = -50;
 
     UIButton *button1;
     button1 = [UIButton buttonWithType:UIButtonTypeRoundedRect];
-    button1.frame = CGRectMake(30, 200, 60, 60);
+    button1.frame = CGRectMake(200, 30, 60, 60);
     [button1 setTitle:@"Kick"
              forState:(UIControlState)UIControlStateNormal];
     [button1 setBackgroundColor:[UIColor blueColor]];
@@ -122,7 +123,7 @@ static float const X_SCRN = -50;
     
     UIButton *button2;
     button2 = [UIButton buttonWithType:UIButtonTypeRoundedRect];
-    button2.frame = CGRectMake(30, 90, 60, 60);
+    button2.frame = CGRectMake(90, 30, 60, 60);
     [button2 setTitle:@"Snare"
              forState:(UIControlState)UIControlStateNormal];
     [button2 setBackgroundColor:[UIColor blueColor]];
@@ -133,7 +134,7 @@ static float const X_SCRN = -50;
     
     UIButton *button3;
     button3 = [UIButton buttonWithType:UIButtonTypeRoundedRect];
-    button3.frame = CGRectMake(30, 150, 60, 60);
+    button3.frame = CGRectMake(150, 30, 60, 60);
     [button3 setTitle:@"Hat"
              forState:(UIControlState)UIControlStateNormal];
     [button3 setBackgroundColor:[UIColor blueColor]];
@@ -191,6 +192,7 @@ static float const X_SCRN = -50;
     [self.view addSubview:_arrangmentButton];
     
     [self setUpRecordingButton];
+    [self setUpClearButton];
 }
 
 - (void)setUpRecordingButton
@@ -214,6 +216,29 @@ static float const X_SCRN = -50;
     layer.borderColor = [[UIColor darkGrayColor] CGColor];
     layer.borderWidth = 1.0f;
     [self.view addSubview:_recordButton];
+}
+
+- (void)setUpClearButton
+{
+    _clearButton = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+    _clearButton.frame = CGRectMake(30,
+                                    90,
+                                    60,
+                                    60);
+    [_clearButton setTitle:@"CLEAR"
+                   forState:(UIControlState)UIControlStateNormal];
+    [_clearButton setTitleColor:[UIColor blackColor]
+                        forState:(UIControlState)UIControlStateNormal];
+    _clearButton.titleLabel.font = [UIFont systemFontOfSize:16.0];
+    
+    [_clearButton addTarget:self
+                     action:@selector(clearArrangement:)
+            forControlEvents:(UIControlEvents)UIControlEventTouchDown];
+    CALayer *layer = _clearButton.layer;
+    layer.backgroundColor = [UIColor yellowColor].CGColor;
+    layer.borderColor = [[UIColor darkGrayColor] CGColor];
+    layer.borderWidth = 1.0f;
+    [self.view addSubview:_clearButton];
 }
 
 - (void)setUpPlayButton
@@ -240,7 +265,7 @@ static float const X_SCRN = -50;
 }
 
 - (void)playbackMode:(id)sender {
-    if (_isInPlaybackMode) {
+    if (_isInPlaybackMode || _isRecording) {
         return;
     }
     
@@ -256,13 +281,14 @@ static float const X_SCRN = -50;
     player.backgroundColor = [UIColor blackColor].CGColor;
     
     [_recordButton removeFromSuperview];
+    [_clearButton removeFromSuperview];
     [self setUpPlayButton];
     
     // TODO: setup immersive playback/regular playback buttons
 }
 
 - (void)arrangementMode:(id)sender {
-    if (_isInArrangementMode) {
+    if (_isInArrangementMode || _isPlaying) {
         return;
     }
 
@@ -279,6 +305,7 @@ static float const X_SCRN = -50;
     
     [_playButton removeFromSuperview];
     [self setUpRecordingButton];
+    [self setUpClearButton];
 }
 
 - (void)recordingMode:(id)sender
@@ -297,6 +324,18 @@ static float const X_SCRN = -50;
     }
     _isPlaying = YES;
     [self startPanningPlayback:90];
+}
+
+- (void)clearArrangement:(id)sender
+{
+    if (_isRecording) {
+        return;
+    }
+    // Get rid of existing arrangement
+    for (SCNNodeWrapper *nodeWrapper in _nodesInArrangement) {
+        [nodeWrapper.node removeFromParentNode];
+    }
+    [_nodesInArrangement removeAllObjects];
 }
 
 -(void) playSound1:(id)sender {
@@ -374,12 +413,6 @@ static float const X_SCRN = -50;
     
     const float constY = _orthoPlaneNode.position.y;
     const float constZ = _orthoPlaneNode.position.z;
-    
-    // Get rid of existing arrangement
-    for (SCNNodeWrapper *nodeWrapper in _nodesInArrangement) {
-        [nodeWrapper.node removeFromParentNode];
-    }
-    [_nodesInArrangement removeAllObjects];
 
     _isAnimating = YES;
     SCNAction *pan = [SCNAction moveByX:kPLANE_WIDTH y:0 z:0 duration:totalPanningDuration];
@@ -392,6 +425,7 @@ static float const X_SCRN = -50;
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^void () {
         float timeSinceAnimation = 0.0;
         NSMutableSet *newSounds = [NSMutableSet new];
+        NSMutableSet *arrangementCopy = [NSMutableSet setWithArray:_nodesInArrangement];
         while (_isAnimating) {
             float currentX = _orthoPlaneNode.position.x;
             [_arrayLock lock];
@@ -400,7 +434,15 @@ static float const X_SCRN = -50;
             }
             [_addedWaves removeAllObjects];
             [_arrayLock unlock];
-            
+            for (SCNNodeWrapper *sound in _nodesInArrangement) {
+                if (![arrangementCopy containsObject:sound]) {
+                    continue;
+                }
+                if (currentX >= (sound.node.position.x - 0.1/2)) {
+                    [_soundManager playSound:sound.soundKey];
+                    [arrangementCopy removeObject:sound];
+                }
+            }
             for (NSString *newSound in newSounds) {
                 SCNBox *boxGeometry = [SCNBox boxWithWidth:0.1
                                                     height:0.1
