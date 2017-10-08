@@ -74,6 +74,11 @@ static float const X_SCRN = -50;
     UIButton *_playButton;
     UIButton *_clearButton;
     NSMutableArray<UIButton *> *_instrumentSelectionMenu;
+    
+    // Waveforms
+    SCNShape *_kickShape;
+    SCNShape *_hatShape;
+    SCNShape *_snareShape;
 }
 
 - (void)viewDidLoad {
@@ -104,6 +109,25 @@ static float const X_SCRN = -50;
     _processingVision = NO;
     _currentSoundKey = kKickKey;
     
+    // Initialize waveforms
+    CGPathRef pathRef = [self sineWithAmplitude:0.1 frequency:6 width:0.3 centered:YES decay:0.1 andNumPoints:128];
+    UIBezierPath *bezierPath = [UIBezierPath bezierPathWithCGPath:pathRef];
+    _kickShape = [SCNShape shapeWithPath:bezierPath extrusionDepth:0.05];
+    _kickShape.chamferRadius = 0.1;
+    _kickShape.firstMaterial.diffuse.contents = SKColor.blackColor;
+    
+    pathRef = [self sineWithAmplitude:0.1 frequency:6 width:0.3 centered:YES decay:0.06 andNumPoints:128];
+    bezierPath = [UIBezierPath bezierPathWithCGPath:pathRef];
+    _hatShape = [SCNShape shapeWithPath:bezierPath extrusionDepth:0.05];
+    _hatShape.chamferRadius = 0.1;
+    _hatShape.firstMaterial.diffuse.contents = SKColor.redColor;
+    
+    pathRef = [self sineWithAmplitude:0.1 frequency:6 width:0.3 centered:YES decay:0.05 andNumPoints:128];
+    bezierPath = [UIBezierPath bezierPathWithCGPath:pathRef];
+    _snareShape = [SCNShape shapeWithPath:bezierPath extrusionDepth:0.05];
+    _snareShape.chamferRadius = 0.1;
+    _snareShape.firstMaterial.diffuse.contents = SKColor.greenColor;
+
     // Set up initial plane
     [self setupGrid];
     // Set up orthogonal panning pane
@@ -481,7 +505,7 @@ static float const X_SCRN = -50;
                 if (![arrangementCopy containsObject:sound]) {
                     continue;
                 }
-                if (currentX >= (sound.node.position.x - 0.1/2)) {
+                if (currentX >= (sound.node.position.x - 0.3/2)) {
                     [_soundManager playSound:sound.soundKey];
                     [arrangementCopy removeObject:sound];
                 }
@@ -532,27 +556,24 @@ static float const X_SCRN = -50;
                 }
             }
             for (NSString *newSound in newSounds) {
-                SCNBox *boxGeometry = [SCNBox boxWithWidth:0.1
-                                                    height:0.1
-                                                    length:0.1
-                                             chamferRadius:0.0];
+                SCNShape *waveShape;
                 float zPos;
                 if ([newSound isEqualToString:kKickKey]) {
                     zPos = constZ + kPLANE_HEIGHT/3;
-                    boxGeometry.firstMaterial.diffuse.contents = SKColor.blueColor;
+                    waveShape = _kickShape;
                 } else if ([newSound isEqualToString:kSnareKey]) {
                     zPos = constZ;
-                    boxGeometry.firstMaterial.diffuse.contents = SKColor.redColor;
+                    waveShape = _snareShape;
                 } else {
                     zPos = constZ - kPLANE_HEIGHT/3;
-                    boxGeometry.firstMaterial.diffuse.contents = SKColor.greenColor;
+                    waveShape = _hatShape;
                 }
-                SCNNode *boxNode = [SCNNode nodeWithGeometry:boxGeometry];
-                boxNode.position = SCNVector3Make(currentX + 0.1/2.0, constY, zPos);
-                [self.sceneView.scene.rootNode addChildNode: boxNode];
+                SCNNode *waveNode = [SCNNode nodeWithGeometry:waveShape];
+                waveNode.position = SCNVector3Make(currentX + 0.3/2.0, constY, zPos);
+                [self.sceneView.scene.rootNode addChildNode: waveNode];
                 SCNNodeWrapper *nodeWrapper = [SCNNodeWrapper new];
                 nodeWrapper.soundKey = newSound;
-                nodeWrapper.node = boxNode;
+                nodeWrapper.node = waveNode;
                 [_nodesInArrangement addObject:nodeWrapper];
             }
             [newSounds removeAllObjects];
@@ -821,5 +842,66 @@ static float const X_SCRN = -50;
 //
     // TODO: play sound
 }
+
+#pragma mark - WaveForm Generation
+
+typedef struct {
+    CGFloat x, y;
+} WavPoint;
+
+// Generate a decaying sinusoid CGPath that overlaps over itself
+- (CGPathRef)sineWithAmplitude:(CGFloat)amp
+                     frequency:(CGFloat)freq
+                         width:(CGFloat)width centered:(BOOL)centered
+                         decay:(CGFloat)decay
+                  andNumPoints:(NSInteger)numPoints {
+    
+    CGFloat offsetX = 0;
+    CGFloat offsetY = amp;
+    
+    // Center the sinusoid within the shape node
+    if (centered) {
+        offsetX = -width/2.0;
+        offsetY = 0;
+    }
+    
+    CGFloat LOWER_TRANSLATION = 0.005;
+    
+    CGMutablePathRef path = CGPathCreateMutable();
+    WavPoint lowerPoints[numPoints];
+    
+    // Move to the starting point
+    CGPathMoveToPoint(path, nil, offsetX, offsetY);
+    WavPoint startingPoint;
+    startingPoint.x = offsetX;
+    startingPoint.y = offsetY-LOWER_TRANSLATION;
+    lowerPoints[numPoints-1] = startingPoint;
+    
+    CGFloat xIncr = width / (numPoints-1);
+    
+    CGFloat lastX = 0.0;
+    CGFloat lastY = 0.0;
+    
+    // Construct the sinusoid
+    for (int i = 1; i < numPoints; ++i) {
+        CGFloat y = amp * exp(-i*decay) * cos(2*M_PI*freq*i/(numPoints-1));
+        lastX = i*xIncr+offsetX;
+        lastY = y+offsetY;
+        CGPathAddLineToPoint(path, nil, lastX, lastY);
+        WavPoint point;
+        point.x = lastX;
+        point.y = lastY-LOWER_TRANSLATION;
+        lowerPoints[numPoints-(1+i)] = point;
+    }
+    
+    // Make it overlap itself
+    for (int i = 0; i < numPoints; ++i) {
+        WavPoint point = lowerPoints[i];
+        CGPathAddLineToPoint(path, nil, point.x, point.y);
+    }
+    
+    return path;
+}
+
 
 @end
