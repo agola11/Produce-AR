@@ -26,11 +26,14 @@ static float const kORTH_PLANE_HEIGHT = 0.5;
 static NSUInteger const kNumMeasures = 8;
 static NSUInteger const kAnimateQuantize = 128;
 
+static float const X_SCRN = -50;
+
 @interface ViewController () <ARSCNViewDelegate, BlueToothManagerDelegate>
 
 @property (nonatomic, strong) IBOutlet ARSCNView *sceneView;
 @property (atomic) BOOL isAnimating;
-
+@property (atomic) BOOL isRecording;
+@property (atomic) BOOL isPlaying;
 @end
 
 @interface SCNNodeWrapper : NSObject
@@ -52,6 +55,18 @@ static NSUInteger const kAnimateQuantize = 128;
     NSMutableSet *_addedWaves; // waves added by bluetooth
     NSLock *_arrayLock; // locks the _addedWaves array
     NSMutableArray<SCNNodeWrapper*> *_nodesInArrangement; // holds references to all nodes in arrangement
+    
+    BOOL _isInArrangementMode;
+    BOOL _isInPlaybackMode;
+    
+    // Buttons
+    CGFloat _screenWidth;
+    CGFloat _screenHeight;
+    UIButton *_playbackButton;
+    UIButton *_arrangmentButton;
+    UIButton *_recordButton;
+    UIButton *_playButton;
+    
 }
 
 - (void)viewDidLoad {
@@ -69,6 +84,16 @@ static NSUInteger const kAnimateQuantize = 128;
     // Set the scene to the view
     self.sceneView.scene = scene;
     
+    CGRect screenRect = [[UIScreen mainScreen] bounds];
+    _screenWidth = MAX(screenRect.size.width, screenRect.size.height);
+    _screenHeight = MIN(screenRect.size.width, screenRect.size.height);
+    
+    // Start off in Arrangement Mode
+    _isInArrangementMode = YES;
+    _isInPlaybackMode = NO;
+    _isRecording = NO;
+    _isPlaying = NO;
+    
     // Set up initial plane
     [self setupGrid];
     // Set up orthogonal panning pane
@@ -82,10 +107,11 @@ static NSUInteger const kAnimateQuantize = 128;
     // Initialize SoundManager
     _soundManager = [[SoundManager alloc] initWithDefaults];
     
-    // TEMPORARY: create buttons to test sounds
+    [self setUpInitialButtons];
+
     UIButton *button1;
     button1 = [UIButton buttonWithType:UIButtonTypeRoundedRect];
-    button1.frame = CGRectMake(30, 30, 60, 60);
+    button1.frame = CGRectMake(30, 200, 60, 60);
     [button1 setTitle:@"Kick"
              forState:(UIControlState)UIControlStateNormal];
     [button1 setBackgroundColor:[UIColor blueColor]];
@@ -96,7 +122,7 @@ static NSUInteger const kAnimateQuantize = 128;
     
     UIButton *button2;
     button2 = [UIButton buttonWithType:UIButtonTypeRoundedRect];
-    button2.frame = CGRectMake(90, 90, 60, 60);
+    button2.frame = CGRectMake(30, 90, 60, 60);
     [button2 setTitle:@"Snare"
              forState:(UIControlState)UIControlStateNormal];
     [button2 setBackgroundColor:[UIColor blueColor]];
@@ -107,7 +133,7 @@ static NSUInteger const kAnimateQuantize = 128;
     
     UIButton *button3;
     button3 = [UIButton buttonWithType:UIButtonTypeRoundedRect];
-    button3.frame = CGRectMake(30, 90, 60, 60);
+    button3.frame = CGRectMake(30, 150, 60, 60);
     [button3 setTitle:@"Hat"
              forState:(UIControlState)UIControlStateNormal];
     [button3 setBackgroundColor:[UIColor blueColor]];
@@ -116,44 +142,194 @@ static NSUInteger const kAnimateQuantize = 128;
       forControlEvents:(UIControlEvents)UIControlEventTouchDown];
     [self.view addSubview:button3];
     
-    UIButton *button4;
-    button4 = [UIButton buttonWithType:UIButtonTypeRoundedRect];
-    button4.frame = CGRectMake(90, 30, 60, 60);
-    [button4 setTitle:@"Playback"
-             forState:(UIControlState)UIControlStateNormal];
-    [button4 setBackgroundColor:[UIColor blueColor]];
-    [button4 addTarget:self
-                action:@selector(playBack:)
-      forControlEvents:(UIControlEvents)UIControlEventTouchDown];
-    [self.view addSubview:button4];
-    
     // Initiliaze BluetoothManager
     _bluetoothManager = [[BluetoothManager alloc] initWithServiceUUID:UUID
                                              bluetoothManagerDelegate:self
                                                                 queue:dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)];
 }
 
+- (void) setUpInitialButtons
+{
+    // Playback button (DEFAULT - OFF)
+    _playbackButton = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+    _playbackButton.frame = CGRectMake(_screenWidth/2 - 60 + X_SCRN,
+                               _screenHeight/2 + 110,
+                               120,
+                               60);
+    [_playbackButton setTitle:@"Playback"
+             forState:(UIControlState)UIControlStateNormal];
+    [_playbackButton setTitleColor:[UIColor whiteColor]
+                  forState:(UIControlState)UIControlStateNormal];
+    _playbackButton.titleLabel.font = [UIFont systemFontOfSize:16.0];
+    [_playbackButton addTarget:self
+                action:@selector(playbackMode:)
+      forControlEvents:(UIControlEvents)UIControlEventTouchDown];
+    CALayer *layer = _playbackButton.layer;
+    layer.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.5].CGColor;
+    layer.borderColor = [[UIColor darkGrayColor] CGColor];
+    layer.borderWidth = 1.0f;
+    [self.view addSubview:_playbackButton];
+    
+    // Arrangement button (DEFAULT - ON)
+    _arrangmentButton = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+    _arrangmentButton.frame = CGRectMake(_screenWidth/2 + 60 + X_SCRN,
+                                         _screenHeight/2 + 110,
+                                         120,
+                                         60);
+    [_arrangmentButton setTitle:@"Arrangement"
+             forState:(UIControlState)UIControlStateNormal];
+    [_arrangmentButton setTitleColor:[UIColor whiteColor]
+                          forState:(UIControlState)UIControlStateNormal];
+    _arrangmentButton.titleLabel.font = [UIFont systemFontOfSize:16.0];
+    [_arrangmentButton addTarget:self
+                action:@selector(arrangementMode:)
+      forControlEvents:(UIControlEvents)UIControlEventTouchDown];
+    CALayer *alayer = _arrangmentButton.layer;
+    alayer.backgroundColor = [UIColor blackColor].CGColor;
+    alayer.borderColor = [[UIColor darkGrayColor] CGColor];
+    alayer.borderWidth = 1.0f;
+    [self.view addSubview:_arrangmentButton];
+    
+    [self setUpRecordingButton];
+}
+
+- (void)setUpRecordingButton
+{
+    _recordButton = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+    _recordButton.frame = CGRectMake(30,
+                                     30,
+                                     60,
+                                     60);
+    [_recordButton setTitle:@"REC"
+                       forState:(UIControlState)UIControlStateNormal];
+    [_recordButton setTitleColor:[UIColor whiteColor]
+                            forState:(UIControlState)UIControlStateNormal];
+    _recordButton.titleLabel.font = [UIFont systemFontOfSize:16.0];
+    
+    [_recordButton addTarget:self
+                      action:@selector(recordingMode:)
+                forControlEvents:(UIControlEvents)UIControlEventTouchDown];
+    CALayer *layer = _recordButton.layer;
+    layer.backgroundColor = [UIColor redColor].CGColor;
+    layer.borderColor = [[UIColor darkGrayColor] CGColor];
+    layer.borderWidth = 1.0f;
+    [self.view addSubview:_recordButton];
+}
+
+- (void)setUpPlayButton
+{
+    _playButton = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+    _playButton.frame = CGRectMake(30,
+                                     30,
+                                     60,
+                                     60);
+    [_playButton setTitle:@"PLAY"
+                   forState:(UIControlState)UIControlStateNormal];
+    [_playButton setTitleColor:[UIColor whiteColor]
+                        forState:(UIControlState)UIControlStateNormal];
+    _playButton.titleLabel.font = [UIFont systemFontOfSize:16.0];
+    
+    [_playButton addTarget:self
+                    action:@selector(playingMode:)
+            forControlEvents:(UIControlEvents)UIControlEventTouchDown];
+    CALayer *layer = _playButton.layer;
+    layer.backgroundColor = [UIColor greenColor].CGColor;
+    layer.borderColor = [[UIColor darkGrayColor] CGColor];
+    layer.borderWidth = 1.0f;
+    [self.view addSubview:_playButton];
+}
+
+- (void)playbackMode:(id)sender {
+    if (_isInPlaybackMode) {
+        return;
+    }
+    
+    // Set BOOLs
+    _isInPlaybackMode = YES;
+    _isInArrangementMode = NO;
+    
+    // Update buttons
+    CALayer *alayer = _arrangmentButton.layer;
+    alayer.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.5].CGColor;
+    
+    CALayer *player = _playbackButton.layer;
+    player.backgroundColor = [UIColor blackColor].CGColor;
+    
+    [_recordButton removeFromSuperview];
+    [self setUpPlayButton];
+    
+    // TODO: setup immersive playback/regular playback buttons
+}
+
+- (void)arrangementMode:(id)sender {
+    if (_isInArrangementMode) {
+        return;
+    }
+
+    // Set BOOLs
+    _isInPlaybackMode = NO;
+    _isInArrangementMode = YES;
+    
+    // Update buttons
+    CALayer *alayer = _arrangmentButton.layer;
+    alayer.backgroundColor = [UIColor blackColor].CGColor;
+    
+    CALayer *player = _playbackButton.layer;
+    player.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.5].CGColor;
+    
+    [_playButton removeFromSuperview];
+    [self setUpRecordingButton];
+}
+
+- (void)recordingMode:(id)sender
+{
+    if (_isRecording) {
+        return;
+    }
+    _isRecording = YES;
+    [self startPanningArrangement:90];
+}
+
+- (void)playingMode:(id)sender
+{
+    if (_isPlaying) {
+        return;
+    }
+    _isPlaying = YES;
+    [self startPanningPlayback:90];
+}
+
 -(void) playSound1:(id)sender {
     [_soundManager playSound:kKickKey];
-    [self startPanningArrangement:90];
+    
+    if (_isRecording) {
+        [_arrayLock lock];
+        [_addedWaves addObject:kKickKey];
+        [_arrayLock unlock];
+    }
 }
 
 -(void) playSound2:(id)sender {
     [_soundManager playSound:kSnareKey];
-    [_arrayLock lock];
-    [_addedWaves addObject:@(1)];
-    [_arrayLock unlock];
+    if (_isRecording) {
+        [_arrayLock lock];
+        [_addedWaves addObject:kSnareKey];
+        [_arrayLock unlock];
+    }
 }
 
 -(void) playSound3:(id)sender {
     [_soundManager playSound:kHatKey];
+    if (_isRecording) {
+        [_arrayLock lock];
+        [_addedWaves addObject:kHatKey];
+        [_arrayLock unlock];
+    }
 }
 
--(void) playBack:(id)sender {
-    [self startPanningPlayback:90];
-}
+# pragma mark - playback and recording with animations
 
--(void) startPanningPlayback:(float)bpm
+- (void)startPanningPlayback:(float)bpm
 {
     float bps = bpm / 60.0; // beats per second
     float totalPanningDuration = (float)kNumMeasures / bps;
@@ -167,6 +343,7 @@ static NSUInteger const kAnimateQuantize = 128;
     [_orthoPlaneNode runAction:pan completionHandler:^{
         _isAnimating = NO;
         _orthoPlaneNode.position = SCNVector3Make(0.0-kPLANE_WIDTH/2, constY, constZ);
+        _isPlaying = NO;
     }];
     
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^void () {
@@ -179,7 +356,7 @@ static NSUInteger const kAnimateQuantize = 128;
                     continue;
                 }
                 if (currentX >= (sound.node.position.x - 0.1/2)) {
-                    [_soundManager playSound:kSnareKey];
+                    [_soundManager playSound:sound.soundKey];
                     [arrangementCopy removeObject:sound];
                 }
             }
@@ -189,49 +366,66 @@ static NSUInteger const kAnimateQuantize = 128;
     });
 }
 
--(void) startPanningArrangement:(float)bpm
+- (void)startPanningArrangement:(float)bpm
 {
     float bps = bpm / 60.0; // beats per second
     float totalPanningDuration = (float)kNumMeasures / bps;
     const float loopPanningDuration = totalPanningDuration / (float)kAnimateQuantize;
-    //const float panSpeed = kPLANE_WIDTH / totalPanningDuration;
     
     const float constY = _orthoPlaneNode.position.y;
     const float constZ = _orthoPlaneNode.position.z;
+    
+    // Get rid of existing arrangement
+    for (SCNNodeWrapper *nodeWrapper in _nodesInArrangement) {
+        [nodeWrapper.node removeFromParentNode];
+    }
+    [_nodesInArrangement removeAllObjects];
 
     _isAnimating = YES;
     SCNAction *pan = [SCNAction moveByX:kPLANE_WIDTH y:0 z:0 duration:totalPanningDuration];
     [_orthoPlaneNode runAction:pan completionHandler:^{
         _isAnimating = NO;
         _orthoPlaneNode.position = SCNVector3Make(0.0-kPLANE_WIDTH/2, constY, constZ);
+        _isRecording = NO;
     }];
     
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^void () {
         float timeSinceAnimation = 0.0;
-        BOOL hasNewWaves = NO;
+        NSMutableSet *newSounds = [NSMutableSet new];
         while (_isAnimating) {
             float currentX = _orthoPlaneNode.position.x;
             [_arrayLock lock];
-            if ([_addedWaves count] > 0) {
-                hasNewWaves = YES;
-                [_addedWaves removeAllObjects];
+            for (id sound in _addedWaves) {
+                [newSounds addObject:sound];
             }
+            [_addedWaves removeAllObjects];
             [_arrayLock unlock];
             
-            if (hasNewWaves) {
+            for (NSString *newSound in newSounds) {
                 SCNBox *boxGeometry = [SCNBox boxWithWidth:0.1
                                                     height:0.1
                                                     length:0.1
                                              chamferRadius:0.0];
+                float zPos;
+                if ([newSound isEqualToString:kKickKey]) {
+                    zPos = constZ + kPLANE_HEIGHT/3;
+                    boxGeometry.firstMaterial.diffuse.contents = SKColor.blueColor;
+                } else if ([newSound isEqualToString:kSnareKey]) {
+                    zPos = constZ;
+                    boxGeometry.firstMaterial.diffuse.contents = SKColor.redColor;
+                } else {
+                    zPos = constZ - kPLANE_HEIGHT/3;
+                    boxGeometry.firstMaterial.diffuse.contents = SKColor.greenColor;
+                }
                 SCNNode *boxNode = [SCNNode nodeWithGeometry:boxGeometry];
-                boxNode.position = SCNVector3Make(currentX + 0.1/2.0, constY, constZ);
+                boxNode.position = SCNVector3Make(currentX + 0.1/2.0, constY, zPos);
                 [self.sceneView.scene.rootNode addChildNode: boxNode];
                 SCNNodeWrapper *nodeWrapper = [SCNNodeWrapper new];
-                nodeWrapper.soundKey = kSnareKey;
+                nodeWrapper.soundKey = newSound;
                 nodeWrapper.node = boxNode;
                 [_nodesInArrangement addObject:nodeWrapper];
-                hasNewWaves = NO;
             }
+            [newSounds removeAllObjects];
             timeSinceAnimation += loopPanningDuration;
             [NSThread sleepForTimeInterval:loopPanningDuration];
         }

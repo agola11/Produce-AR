@@ -10,7 +10,7 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "Produce-AR/BluetoothManager.m"
-            timestampString = "529120053.693385"
+            timestampString = "529132418.69465"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "78"
@@ -26,7 +26,7 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "Produce-AR/BluetoothManager.m"
-            timestampString = "529120053.693454"
+            timestampString = "529132418.694744"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "64"
@@ -42,7 +42,7 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "Produce-AR/BluetoothManager.m"
-            timestampString = "529120053.693508"
+            timestampString = "529132418.694812"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "70"
@@ -58,13 +58,13 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "Produce-AR/ViewController.m"
-            timestampString = "529120053.693557"
+            timestampString = "529132418.69488"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "362"
-            endingLineNumber = "362"
-            landmarkName = "ViewController"
-            landmarkType = "3">
+            startingLineNumber = "556"
+            endingLineNumber = "556"
+            landmarkName = "-didReceiveValueFromBluetoothPeripheral:"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -74,7 +74,7 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "Produce-AR/BluetoothManager.m"
-            timestampString = "529120053.69395"
+            timestampString = "529132418.695461"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "131"
@@ -90,7 +90,7 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "Produce-AR/BluetoothManager.m"
-            timestampString = "529120053.693997"
+            timestampString = "529132418.695527"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "91"
@@ -106,7 +106,7 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "Produce-AR/BluetoothManager.m"
-            timestampString = "529120053.694038"
+            timestampString = "529132418.695584"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "110"
@@ -122,11 +122,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "Produce-AR/ViewController.m"
-            timestampString = "529120053.694079"
+            timestampString = "529132418.695645"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "194"
-            endingLineNumber = "194"
+            startingLineNumber = "371"
+            endingLineNumber = "371"
             landmarkName = "-startPanningArrangement:"
             landmarkType = "7">
          </BreakpointContent>
@@ -138,11 +138,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "Produce-AR/ViewController.m"
-            timestampString = "529120053.69434"
+            timestampString = "529132418.696076"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "213"
-            endingLineNumber = "213"
+            startingLineNumber = "396"
+            endingLineNumber = "396"
             landmarkName = "-startPanningArrangement:"
             landmarkType = "7">
          </BreakpointContent>
@@ -154,11 +154,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "Produce-AR/ViewController.m"
-            timestampString = "529120053.694587"
+            timestampString = "529132418.696485"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "201"
-            endingLineNumber = "201"
+            startingLineNumber = "383"
+            endingLineNumber = "383"
             landmarkName = "-startPanningArrangement:"
             landmarkType = "7">
          </BreakpointContent>
@@ -170,11 +170,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "Produce-AR/ViewController.m"
-            timestampString = "529120053.694834"
+            timestampString = "529132418.696894"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "176"
-            endingLineNumber = "176"
+            startingLineNumber = "353"
+            endingLineNumber = "353"
             landmarkName = "-startPanningPlayback:"
             landmarkType = "7">
          </BreakpointContent>
@@ -186,11 +186,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "Produce-AR/ViewController.m"
-            timestampString = "529120053.695065"
+            timestampString = "529132418.69726"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "177"
-            endingLineNumber = "177"
+            startingLineNumber = "354"
+            endingLineNumber = "354"
             landmarkName = "-startPanningPlayback:"
             landmarkType = "7">
             <Locations>
@@ -225,6 +225,22 @@
                   offsetFromSymbolStart = "320">
                </Location>
             </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Produce-AR/ViewController.m"
+            timestampString = "529132418.697626"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "92"
+            endingLineNumber = "92"
+            landmarkName = "-viewDidLoad"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>
