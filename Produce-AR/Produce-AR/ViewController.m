@@ -9,6 +9,7 @@
 #import "BluetoothManager.h"
 #import "SoundManager.h"
 #import "ViewController.h"
+#import <Vision/Vision.h>
 
 // Bluetooth UUID
 static NSString *const UUID = @"19B10010-E8F2-537E-4F6C-D104768A1214";
@@ -55,9 +56,13 @@ static float const X_SCRN = -50;
     NSMutableSet *_addedWaves; // waves added by bluetooth
     NSLock *_arrayLock; // locks the _addedWaves array
     NSMutableArray<SCNNodeWrapper*> *_nodesInArrangement; // holds references to all nodes in arrangement
+    ARAnchor *_qrAnchor; // anchor for QR code in 3D space
+    NSString *_currentQRValue;
     
     BOOL _isInArrangementMode;
     BOOL _isInPlaybackMode;
+    BOOL _processingVision; // used to indicate that a VN request is taking place
+    BOOL _enableVision; // used to indicate whether or not to enable QR tracking
     
     // Buttons
     CGFloat _screenWidth;
@@ -67,7 +72,7 @@ static float const X_SCRN = -50;
     UIButton *_recordButton;
     UIButton *_playButton;
     UIButton *_clearButton;
-    
+    UIButton *_instrumentSelectionMenu;
 }
 
 - (void)viewDidLoad {
@@ -94,6 +99,8 @@ static float const X_SCRN = -50;
     _isInPlaybackMode = NO;
     _isRecording = NO;
     _isPlaying = NO;
+    _enableVision = YES;
+    _processingVision = NO;
     
     // Set up initial plane
     [self setupGrid];
@@ -148,6 +155,8 @@ static float const X_SCRN = -50;
                                              bluetoothManagerDelegate:self
                                                                 queue:dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)];
 }
+
+#pragma mark - buttons
 
 - (void) setUpInitialButtons
 {
@@ -264,6 +273,38 @@ static float const X_SCRN = -50;
     [self.view addSubview:_playButton];
 }
 
+- (void)setUpInstrumentSelectionMenu
+{
+    // turn vision processing off to avoid jumpy node
+    _enableVision = NO;
+    
+    if (_instrumentSelectionMenu) {
+        return;
+    }
+    
+    _instrumentSelectionMenu = [UIButton buttonWithType:UIButtonTypeRoundedRect];
+    _instrumentSelectionMenu.frame = CGRectMake(30, 30, 150, 150);
+    [_instrumentSelectionMenu setTitle:_currentQRValue
+                              forState:(UIControlState)UIControlStateNormal];
+    [_instrumentSelectionMenu setBackgroundColor:[UIColor blueColor]];
+    [_instrumentSelectionMenu addTarget:self
+                action:@selector(exitInstrumentSelectionMenu:)
+      forControlEvents:(UIControlEvents)UIControlEventTouchDown];
+    [self.sceneView addSubview:_instrumentSelectionMenu];
+}
+
+- (void) exitInstrumentSelectionMenu:(id)sender {
+    [(UIButton *)sender removeFromSuperview];
+    _instrumentSelectionMenu = nil;
+    SCNNode *node = [self.sceneView nodeForAnchor:_qrAnchor];
+    [node removeFromParentNode];
+    _qrAnchor = nil;
+    _enableVision = YES;
+}
+
+
+#pragma mark - modes
+
 - (void)playbackMode:(id)sender {
     if (_isInPlaybackMode || _isRecording) {
         return;
@@ -272,6 +313,7 @@ static float const X_SCRN = -50;
     // Set BOOLs
     _isInPlaybackMode = YES;
     _isInArrangementMode = NO;
+    _enableVision = NO;
     
     // Update buttons
     CALayer *alayer = _arrangmentButton.layer;
@@ -295,6 +337,7 @@ static float const X_SCRN = -50;
     // Set BOOLs
     _isInPlaybackMode = NO;
     _isInArrangementMode = YES;
+    _enableVision = YES;
     
     // Update buttons
     CALayer *alayer = _arrangmentButton.layer;
@@ -314,6 +357,7 @@ static float const X_SCRN = -50;
         return;
     }
     _isRecording = YES;
+    _enableVision = NO;
     [self startPanningArrangement:90];
 }
 
@@ -323,6 +367,7 @@ static float const X_SCRN = -50;
         return;
     }
     _isPlaying = YES;
+    _enableVision = NO;
     [self startPanningPlayback:90];
 }
 
@@ -420,6 +465,7 @@ static float const X_SCRN = -50;
         _isAnimating = NO;
         _orthoPlaneNode.position = SCNVector3Make(0.0-kPLANE_WIDTH/2, constY, constZ);
         _isRecording = NO;
+        _enableVision = YES;
     }];
     
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^void () {
@@ -499,16 +545,85 @@ static float const X_SCRN = -50;
 
 #pragma mark - ARSCNViewDelegate
 
-/*
-// Override to create and configure nodes for anchors added to the view's session.
 - (SCNNode *)renderer:(id<SCNSceneRenderer>)renderer nodeForAnchor:(ARAnchor *)anchor {
-    SCNNode *node = [SCNNode new];
- 
-    // Add geometry to the node...
- 
-    return node;
+    // Check if this is the QR Anchor (and later, if the scene is set)
+    if ([anchor identifier] == [_qrAnchor identifier]) {
+        // The 3D cube geometry we want to draw
+        SCNBox *boxGeometry = [SCNBox boxWithWidth:0.1
+                                            height:0.1
+                                            length:0.1
+                                     chamferRadius:0.0];
+        // The node that wraps the geometry so we can add it to the scene
+        SCNNode *boxNode = [SCNNode nodeWithGeometry:boxGeometry];
+        
+        boxNode.transform = SCNMatrix4FromMat4(anchor.transform);
+        
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self setUpInstrumentSelectionMenu];
+        });
+        
+        return boxNode;
+    }
+    return nil;
 }
-*/
+
+- (void)renderer:(id <SCNSceneRenderer>)renderer updateAtTime:(NSTimeInterval)time
+{
+    if (_processingVision || !_enableVision) {
+        return;
+    }
+    
+    _processingVision = YES;
+    
+    ARFrame *currentFrame = self.sceneView.session.currentFrame;
+    if (currentFrame) {
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^void () {
+            VNDetectBarcodesRequest *rq = [[VNDetectBarcodesRequest alloc] initWithCompletionHandler:(VNRequestCompletionHandler) ^(VNRequest *request, NSError *error) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    if ([request.results count] > 0) {
+                        VNBarcodeObservation *observation = ((VNBarcodeObservation *)(request.results[0]));
+                        CGRect imgRect = observation.boundingBox;
+                        
+                        // Flip coordinates of the rect to get back to View coordinates
+                        CGRect transformedRect;
+                        transformedRect = CGRectApplyAffineTransform(imgRect, CGAffineTransformMakeScale(1, -1));
+                        transformedRect = CGRectApplyAffineTransform(transformedRect, CGAffineTransformMakeTranslation(0, 1));
+                        
+                        // Get the center
+                        CGPoint center = CGPointMake(CGRectGetMidX(transformedRect), CGRectGetMidY(transformedRect));
+                        
+                        // Perform a hit test to get the world transform
+                        NSArray<ARHitTestResult *> *hitTestResults = [currentFrame hitTest:center
+                                                                                     types:ARHitTestResultTypeFeaturePoint];
+                        
+                        if (hitTestResults && ([hitTestResults count] > 0)) {
+                            ARHitTestResult *topHitResult = hitTestResults[0];
+                            if (_qrAnchor) {
+                                // Update the previously detected anchor
+                                SCNNode *node = [self.sceneView nodeForAnchor:_qrAnchor];
+                                node.transform = SCNMatrix4FromMat4(topHitResult.worldTransform);
+                            } else {
+                                // First time detecting (or re-detecting) QR code
+                                _qrAnchor = [[ARAnchor alloc] initWithTransform:topHitResult.worldTransform];
+                                [self.sceneView.session addAnchor:_qrAnchor];
+                            }
+                        }
+                        _currentQRValue = observation.payloadStringValue;
+                    }
+                    
+                    _processingVision = NO;
+                });
+            }];
+            
+            NSDictionary *d = [[NSDictionary alloc] init];
+            rq.symbologies = @[ VNBarcodeSymbologyQR ];
+            VNImageRequestHandler *handler = [[VNImageRequestHandler alloc] initWithCVPixelBuffer:[currentFrame capturedImage] options:d];
+            [handler performRequests:@[rq] error:nil];
+        });
+    } else {
+        _processingVision = NO;
+    }
+}
 
 #pragma mark - Grid Setup
 
@@ -603,6 +718,8 @@ static float const X_SCRN = -50;
     uint8_t theData = 'a';
     NSData *data = [NSData dataWithBytes:&theData length:1];
     [_bluetoothManager writeValue:data];
+    
+    // TODO: play sound
 }
 
 @end
