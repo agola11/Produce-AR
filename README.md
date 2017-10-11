@@ -9,4 +9,4 @@ Started off as a 48 hour hackathon project for Reality, Virtually Hackathon 2017
 
 Youtube Link: https://youtu.be/I-zGXmtL3Mk
 
-Devpost: https://devpost.com/software/produce-ar/edit
+Devpost: https://devpost.com/software/produce-ar
